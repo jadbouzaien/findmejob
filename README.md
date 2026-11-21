@@ -1,124 +1,126 @@
 # Find Me Job
 
-Un outil personnel qui surveille les offres d'emploi en continu, les note selon mon profil et m'alerte sur Telegram dès qu'une offre très pertinente est publiée.
+A personal tool that watches job boards around the clock, scores each offer against my profile, and pings me on Telegram as soon as a strong match is published.
 
-Je l'ai construit pour ma propre recherche d'emploi (développeur full stack, intégration IA, DevOps, chef de projet / PO). Il tourne aujourd'hui sur mon Mac, avec Docker, en attendant un serveur maison.
+I built it for my own job search (full stack development, AI integration, DevOps, project management / product ownership). It currently runs on my Mac with Docker, and will move to a home server.
 
-## Le problème
+## The problem
 
-Une offre intéressante reçoit souvent des centaines de candidatures dans ses premières heures. Pour être lu, il faut postuler tôt. Il faut aussi postuler aux bonnes offres, pas à tout.
+A good job offer often gets hundreds of applications within its first few hours. To get noticed, you need to apply early. You also need to apply to the right offers, not to everything.
 
-Chercher à la main sur une dizaine de sites, plusieurs fois par jour, prend beaucoup de temps et laisse passer des offres. Il est aussi difficile de juger vite si une offre correspond vraiment : bonne zone, vrai remote, salaire suffisant, bon niveau d'expérience.
+Searching a dozen sites by hand, several times a day, takes a lot of time and still misses offers. It is also hard to tell quickly whether an offer really fits: right location, genuinely remote, high enough salary, right experience level.
 
-## Ce que fait l'outil
+## What it does
 
-1. **Collecte en continu.** Toutes les 10 à 30 minutes, il interroge plusieurs sources :
-   - les pages carrières d'une quarantaine d'entreprises (via les API publiques Greenhouse, Lever et Ashby) ;
-   - les offres publiques de LinkedIn ;
-   - France Travail ;
-   - des sites d'offres en remote (Remote OK, Remotive, Himalayas, We Work Remotely).
-2. **Nettoyage.** Il filtre les titres hors sujet, regroupe les doublons publiés sur plusieurs sites et récupère la description quand la source ne la fournit pas.
-3. **Score de fit sur 100**, calculé par un algorithme et expliqué point par point dans le tableau :
-   - **titre (45 points)** : catégorie de poste visée ;
-   - **compétences (25 points)** : celles de mon stack trouvées dans l'offre ;
-   - **localisation (20 points)** : sur site, hybride ou remote, selon la zone ;
-   - **salaire (10 points)** : montant extrait de l'annonce, converti en euros annuels ;
-   - **pénalités** :
-     - années d'expérience demandées comparées à mon expérience dans ce métier ;
-     - diplôme exigé ;
-     - autre langue requise ;
-     - écosystème éditeur que je ne maîtrise pas (SAP, Dynamics…) ;
-     - expérience de lead exigée.
-4. **Exclusions automatiques.** Une offre est masquée, avec la raison affichée, dans ces cas :
-   - sur site hors de ma zone ;
-   - « remote » réservé à un autre pays ;
-   - salaire sous mon plancher ;
-   - stage ou alternance ;
-   - poste senior dans un métier que je n'ai jamais exercé.
-5. **Fraîcheur.** Le score final ajoute un bonus aux offres de moins de 24 h et pénalise les vieilles offres. Il est recalculé toutes les 15 minutes.
-6. **Priorisation et alertes.**
-   - **P1** : alerte Telegram immédiate, avec des boutons *À postuler / Postulé / Ignorer*.
-   - **P2** : récapitulatif à 9 h et 18 h.
-   - **P3** : visible seulement dans le tableau.
-7. **Candidature en un clic.** Pour chaque offre, le tableau indique quel CV envoyer, choisi selon la catégorie du poste et la langue de l'offre. Il génère aussi une **lettre de motivation propre à l'offre**, en PDF, au moment du clic.
+1. **Continuous collection.** Every 10 to 30 minutes, it polls several sources:
+   - the careers pages of about forty companies (through the public Greenhouse, Lever and Ashby APIs);
+   - LinkedIn's public job listings;
+   - France Travail (the French public employment service);
+   - remote job boards (Remote OK, Remotive, Himalayas, We Work Remotely).
+2. **Cleanup.** It filters out irrelevant titles, merges duplicates posted on several sites, and fetches the description when a source doesn't provide it.
+3. **Fit score out of 100**, computed by an algorithm and explained line by line in the dashboard:
+   - **title (45 points)**: matches one of the role categories I target;
+   - **skills (25 points)**: skills from my stack found in the offer;
+   - **location (20 points)**: on-site, hybrid or remote, depending on the area;
+   - **salary (10 points)**: amount extracted from the posting, converted to yearly euros;
+   - **penalties**:
+     - years of experience required, compared to my experience in that specific role;
+     - required degree;
+     - another language required;
+     - vendor ecosystem I don't know (SAP, Dynamics…);
+     - lead experience required.
+4. **Automatic exclusions.** An offer is hidden, with the reason shown, when it is:
+   - on-site outside my area;
+   - "remote" but restricted to another country;
+   - below my salary floor;
+   - an internship or apprenticeship;
+   - a senior role in a job I have never held.
+5. **Freshness.** The final score adds a bonus for offers less than 24 hours old and penalizes older ones. It is recomputed every 15 minutes.
+6. **Prioritization and alerts.**
+   - **P1**: instant Telegram alert, with *To apply / Applied / Ignore* buttons.
+   - **P2**: digest at 9 am and 6 pm.
+   - **P3**: dashboard only.
+7. **One-click application.** For each offer, the dashboard shows which CV to send, chosen from the role category and the language of the offer. It also generates a **cover letter tailored to the offer**, as a PDF, when I click.
 
-## Choix techniques
+## Technical choices
 
-- **Un score déterministe, pas de LLM (pour l'instant).** Chaque point du score a une raison lisible : « −10 : 5 ans d'exp. demandés », « hybride hors zone »… Je peux corriger une règle quand le tri se trompe, et le coût par offre est nul. Un score par LLM est prévu en complément, pas en remplacement.
-- **Détection du vrai mode de travail.** Le filtre « télétravail » de LinkedIn se fie à ce que déclare l'entreprise. L'outil relit la description pour repérer les faux remote : « 3 jours au bureau », « office-first », « remote-friendly »…
-- **Extraction de salaire robuste.** Elle gère les fourchettes (« 42-50k€ »), les devises, la période (an, mois, jour, heure) et les faux positifs (« $100M raised »).
-- **Collecte respectueuse des sources.**
-  - Les pages LinkedIn sont lues sans compte connecté, avec des requêtes groupées et une pause automatique quand le site répond « trop de requêtes » (HTTP 429).
-  - Le quota de Remotive (4 appels par jour) est respecté, et chaque offre affiche sa source avec un lien vers l'annonce d'origine.
-- **Pas d'alerte au premier passage.** Lors de sa première collecte, une source enregistre les offres déjà en ligne sans envoyer de notification. Seules les vraies nouveautés déclenchent une alerte.
-- **Des lettres sans invention.** Les lettres sont assemblées à partir de réalisations réelles, choisies selon les mots-clés de l'offre. Elles ne citent que des compétences de ma liste blanche : si l'offre demande une technologie que je n'ai pas pratiquée, la lettre ne prétend pas la maîtriser.
-- **Données personnelles hors du dépôt.** Les coordonnées, le salaire visé, les tokens et les CVs restent dans `.env` et dans des fichiers ignorés par git.
+- **A deterministic score, no LLM (for now).** Every point of the score has a readable reason: "−10: 5 years of experience required", "hybrid outside my area"… I can fix a rule when the ranking gets something wrong, and scoring costs nothing per offer. LLM scoring is planned as a complement, not a replacement.
+- **Detecting the real work mode.** LinkedIn's "remote" filter trusts what the company declares. The tool rereads the description to catch fake remote offers: "3 days in the office", "office-first", "remote-friendly"…
+- **Robust salary extraction.** It handles ranges ("42-50k€"), currencies, pay periods (year, month, day, hour) and false positives ("$100M raised").
+- **Polite scraping.**
+  - LinkedIn pages are read without a logged-in account, with batched queries and an automatic pause when the site answers "too many requests" (HTTP 429).
+  - Remotive's quota (4 calls per day) is respected, and every offer shows its source with a link to the original posting.
+- **No alerts on the first run.** On its first collection, a source records the offers already online without notifying. Only genuinely new offers trigger an alert.
+- **Cover letters without made-up claims.** Letters are assembled from real achievements, picked according to the offer's keywords. They only mention skills from my whitelist: if an offer asks for a technology I haven't used, the letter doesn't claim it.
+- **Personal data stays out of the repository.** Contact details, salary expectations, tokens, database credentials and CVs live in `.env` and in git-ignored files.
 
 ## Stack
 
 | | |
 |---|---|
-| Langage | TypeScript |
-| Tableau | Next.js 16 (App Router), React 19 |
-| Worker | Node.js (`tsx`) : boucles de collecte, bot Telegram (long polling), tâches planifiées |
-| Base de données | PostgreSQL 17 |
-| Parsing | cheerio (HTML), fast-xml-parser (flux RSS) |
-| PDF | Chrome headless (lettres et CVs générés depuis des modèles HTML) |
-| Déploiement | Docker / docker-compose |
+| Language | TypeScript |
+| Dashboard | Next.js 16 (App Router), React 19 |
+| Worker | Node.js (`tsx`): collection loops, Telegram bot (long polling), scheduled jobs |
+| Database | PostgreSQL 17 |
+| Parsing | cheerio (HTML), fast-xml-parser (RSS feeds) |
+| PDF | Headless Chrome (cover letters and CVs rendered from HTML templates) |
+| Deployment | Docker / docker-compose |
 
 ```mermaid
 flowchart LR
-  S[Sources<br/>ATS · LinkedIn · France Travail · sites remote] --> W[Worker]
-  W -->|filtre · dédoublonnage · score| DB[(PostgreSQL)]
-  W -->|P1 immédiat · P2 récap| T[Telegram]
-  DB --> D[Tableau Next.js]
-  D -->|clic| L[Lettre PDF]
+  S[Sources<br/>ATS · LinkedIn · France Travail · remote boards] --> W[Worker]
+  W -->|filter · dedupe · score| DB[(PostgreSQL)]
+  W -->|P1 instant · P2 digest| T[Telegram]
+  DB --> D[Next.js dashboard]
+  D -->|click| L[Cover letter PDF]
 ```
 
-## Organisation du code
+## Code layout
 
 ```
 config/
-  profile.ts      profil de recherche : catégories, compétences, zones, pénalités, seuils
-  companies.ts    entreprises suivies via leur ATS
-  letters.ts      accroches, réalisations et compétences utilisées par les lettres
+  profile.ts      search profile: role categories, skills, areas, penalties, thresholds
+  companies.ts    companies tracked through their ATS
+  letters.ts      hooks, achievements and skills used in cover letters
 src/
-  sources/        un connecteur par source (ATS, LinkedIn, France Travail, sites remote)
-  scoring/        score de fit, mode de travail, salaire, fraîcheur
-  worker/         planification et pipeline d'ingestion
-  notify/         bot Telegram (alertes, récapitulatifs, commandes /top /stats)
-  letters/        génération des lettres de motivation (HTML → PDF)
-  app/            tableau et API (Next.js)
-  db/             schéma SQL
-cvs/src/          gabarit et génération des CVs (les données des CVs ne sont pas publiées)
+  sources/        one connector per source (ATS, LinkedIn, France Travail, remote boards)
+  scoring/        fit score, work mode, salary, freshness
+  worker/         scheduling and ingestion pipeline
+  notify/         Telegram bot (alerts, digests, /top and /stats commands)
+  letters/        cover letter generation (HTML → PDF)
+  app/            dashboard and API (Next.js)
+  db/             SQL schema
+cvs/src/          CV template and build script (CV content is not published)
 ```
 
-## Lancer le projet
+The scoring rules, labels and comments are written in French, since the tool is built for the French job market first.
+
+## Running it
 
 ```bash
-cp .env.example .env         # puis renseigner le mot de passe Postgres, le token Telegram, les coordonnées, le salaire
+cp .env.example .env         # then fill in the Postgres password, Telegram token, contact details, salary
 npm install
-docker compose up -d db      # PostgreSQL (port 5433)
-npm run worker               # collecte + scoring + bot Telegram
-npm run dev                  # tableau → http://localhost:3100
+docker compose up -d db      # PostgreSQL (port 5433, localhost only)
+npm run worker               # collection + scoring + Telegram bot
+npm run dev                  # dashboard → http://localhost:3100
 ```
 
-Tout en Docker (serveur maison) :
+Everything in Docker (home server):
 
 ```bash
 docker compose --profile full up -d --build
 ```
 
-Autres commandes :
+Other commands:
 
 ```bash
-npm run once                 # un passage de toutes les sources, puis arrêt
-npm run once -- linkedin     # une seule source
-npm run rescore              # recalcule tous les scores après un changement de config/profile.ts
+npm run once                 # one pass over every source, then exit
+npm run once -- linkedin     # a single source
+npm run rescore              # recompute every score after editing config/profile.ts
 ```
 
-## Prochaines étapes
+## Next steps
 
-- Score complémentaire par LLM pour les offres de la zone grise (P2/P3).
-- Activer la source France Travail (identifiants d'API à créer).
-- Hébergement sur un serveur maison.
+- Complementary LLM scoring for borderline offers (P2/P3).
+- Enable the France Travail source (API credentials to create).
+- Move hosting to a home server.
