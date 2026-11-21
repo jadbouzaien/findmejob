@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: findmejob
+      POSTGRES_PASSWORD: findmejob
+      POSTGRES_DB: findmejob
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U findmejob"]
+      interval: 5s
+      retries: 10
+
+  # Profil "full" : pour le serveur maison -> docker compose --profile full up -d
+  worker:
+    profiles: ["full"]
+    build: .
+    command: npm run worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://findmejob:findmejob@db:5432/findmejob
+      TZ: Europe/Paris
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    profiles: ["full"]
+    build: .
+    command: sh -c "npm run build && npm start"
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://findmejob:findmejob@db:5432/findmejob
+      TZ: Europe/Paris
+    ports:
+      - "3100:3100"
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
