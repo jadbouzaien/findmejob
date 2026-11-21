@@ -96,7 +96,7 @@ cvs/src/          gabarit et génération des CVs (les données des CVs ne sont 
 ## Lancer le projet
 
 ```bash
-cp .env.example .env         # puis renseigner le token Telegram, les coordonnées, le salaire
+cp .env.example .env         # puis renseigner le mot de passe Postgres, le token Telegram, les coordonnées, le salaire
 npm install
 docker compose up -d db      # PostgreSQL (port 5433)
 npm run worker               # collecte + scoring + bot Telegram

@@ -3,8 +3,14 @@ import { resolve } from "node:path";
 
 config({ path: resolve(process.cwd(), ".env"), quiet: true });
 
+function required(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} manquant : copie .env.example vers .env et renseigne-le`);
+  return v;
+}
+
 export const env = {
-  databaseUrl: process.env.DATABASE_URL ?? "postgres://findmejob:findmejob@localhost:5433/findmejob",
+  databaseUrl: required("DATABASE_URL"),
   telegramToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID ?? "",
   dashboardUrl: process.env.DASHBOARD_URL ?? "http://localhost:3100",
